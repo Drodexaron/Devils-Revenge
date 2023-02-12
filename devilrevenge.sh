@@ -1,45 +1,54 @@
 #!/bin/bash
 
 # Welcome message
-echo -e "\033[34mHello, Welcome User!\033[0m"
-echo -e "\033[34mThis is in beta version, join our telegram channel and wait for the update version!\033[0m"
+echo -e "\033[0;32mHello, Welcome User! This is in beta version join our telegram channel and wait for update version!\033[0m"
 
-# Request range input
-echo -e "\033[34mEnter the range of requests to be sent (max 100):\033[0m"
-read range
-
-# URL input
-echo -e "\033[34mEnter the URL:\033[0m"
+# Explain the meaning of every input
+echo -e "\033[0;34mHow many requests do you want to send per second?\033[0m"
+read requests_per_second
+echo -e "\033[0;34mHow many seconds or minutes or hours do you want to send requests for? (Enter in seconds)\033[0m"
+read time
+echo -e "\033[0;34mWhat is the URL or IP address of the server you want to send requests to?\033[0m"
 read url
+echo -e "\033[0;34mDo you want to use a proxy while sending requests? (N/Y)\033[0m"
+read use_proxy
 
-# Loop for sending requests
-for i in $(seq 1 $range)
-do
-  # Sending request message
-  echo -e "\033[31m[~]Sending request $i to server!\033[0m \033[32m[$(date +%s%3N) UTC]\033[0m"
+# Error handling for invalid input
+if ! [[ "$requests_per_second" =~ ^[0-9]+$ ]]; then
+  echo -e "\033[0;31mInvalid input: Requests per second must be a positive integer!\033[0m"
+  exit 1
+fi
 
-  # Send request using curl
-  response=$(curl -s -o /dev/null -w "%{http_code}" $url)
+if ! [[ "$time" =~ ^[0-9]+$ ]]; then
+  echo -e "\033[0;31mInvalid input: Time must be a positive integer in seconds!\033[0m"
+  exit 1
+fi
 
-  # Check if server blocked the request
-  if [ $response -eq 403 ]
-  then
-    echo -e "\033[31m[~]Server blocked your requests.\033[0m"
+if ! [[ "$use_proxy" =~ ^[NnYy]$ ]]; then
+  echo -e "\033[0;31mInvalid input: Use proxy must be either N or Y!\033[0m"
+  exit 1
+fi
 
-    # Restart option
-    echo -e "\033[34mWould you like to restart again? (N/Y):\033[0m"
-    read restart
+# Sending requests to the server
+start_time=$(date +%s)
+end_time=$((start_time + time))
+while [[ $(date +%s) -lt $end_time ]]; do
+  for i in $(seq 1 "$requests_per_second"); do
+    echo -e "[~] \033[0;32mSending requests to server $url! $(date +"%T UTC %Z")\033[0m"
+    # Insert your request command here
 
-    if [ "$restart" == "Y" ] || [ "$restart" == "y" ]
-    then
-      i=0
-    else
-      echo -e "\033[34mSee you soon!\033[0m"
-      exit 0
+    # Error handling for server down
+    if [[ "$(curl -I $url 2>/dev/null | head -n 1 | cut -d$' ' -f2)" != "200" ]]; then
+      echo -e "\033[0;31m[~] Server down!\033[0m"
+      while [[ "$(curl -I $url 2>/dev/null | head -n 1 | cut -d$' ' -f2)" != "200" ]]; do
+        sleep 1
+        echo -e "\033[0;31m[~] Server down!\033[0m"
+      done
+      echo -e "\033[0;32m[~] Server back online!\033[0m"
     fi
-  fi
+  done
+  sleep 1
 done
 
-# End message
-echo -e "\033[34mFinished sending requests to server.\033[0m"
-
+# Alert message for end of requests
+echo -e "\033[0;32mFinished sending requests to server $url.\033[0m"
